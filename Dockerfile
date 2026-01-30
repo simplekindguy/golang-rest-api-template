@@ -1,7 +1,14 @@
 # ───────────────────────────────────────────────────────────
 # 🌟 STAGE 1: BUILD GO APPLICATION
 # ───────────────────────────────────────────────────────────
-FROM golang:1.25 AS builder
+FROM golang:1.24.7 AS builder
+# Tool versions (defaults)
+ARG SWAG_VERSION=v1.16.3
+ARG MIGRATE_VERSION=v4.17.1
+ARG LINT_VERSION=v1.55.2
+ARG IMPORTS_VERSION=latest
+ARG VULN_VERSION=latest
+
 
 # Accept build arguments
 ARG SERVER_PORT
@@ -33,12 +40,9 @@ ENV DISABLE_LOGS=$DISABLE_LOGS
 ENV LOG_FORMAT=$LOG_FORMAT
 ENV LOG_CALLER=$LOG_CALLER
 ENV LOG_STACKTRACE=$LOG_STACKTRACE
-ARG SWAG_VERSION=$SWAG_VERSION
-ARG MIGRATE_VERSION=$MIGRATE_VERSION
-ARG LINT_VERSION=$LINT_VERSION
-ARG IMPORTS_VERSION=$IMPORTS_VERSION
-ARG VULN_VERSION=$VULN_VERSION
-
+ENV GOPROXY=https://proxy.golang.org,direct
+ENV GOPRIVATE=github.com/simplekindguy/*
+ENV GOSUMDB=sum.golang.org
 # Set the working directory inside the container
 WORKDIR /app
 
@@ -46,7 +50,9 @@ WORKDIR /app
 COPY go.mod go.sum ./
 
 # Download Go dependencies
-RUN go mod tidy && go mod download
+RUN go env && \
+    go mod tidy -v && \
+    go mod download -x
 
 # Install Swagger, GolangCI-Lint, GoImports, and Govulncheck
 RUN go install github.com/swaggo/swag/cmd/swag@${SWAG_VERSION} && \
@@ -99,8 +105,8 @@ COPY --from=builder /app/package/database/migrations /app/migrations
 # Copy the migrate tool from the builder stage
 COPY --from=builder /usr/local/bin/migrate /usr/local/bin/migrate
 
+EXPOSE 8080
 # Expose the application port
-EXPOSE ${SERVER_PORT}
 
 # Run the application
 CMD ["/app/server"]
