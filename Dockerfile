@@ -10,18 +10,7 @@ ARG IMPORTS_VERSION=latest
 ARG VULN_VERSION=latest
 
 
-# Accept build arguments
-ARG SERVER_PORT
-ARG DB_HOST
-ARG DB_PORT
-ARG DB_USER
-ARG DB_PASSWORD
-ARG DB_NAME
-ARG DEBUG
-ARG DISABLE_LOGS
-ARG LOG_FORMAT
-ARG LOG_CALLER
-ARG LOG_STACKTRACE
+# Build args (no secrets - app gets config at runtime via env_file)
 ARG SWAG_VERSION
 ARG MIGRATE_VERSION
 ARG LINT_VERSION
@@ -54,15 +43,8 @@ RUN go env && \
     go mod tidy -v && \
     go mod download -x
 
-# Install Swagger, GolangCI-Lint, GoImports, and Govulncheck
-RUN go install github.com/swaggo/swag/cmd/swag@${SWAG_VERSION} && \
-    go install golang.org/x/tools/cmd/goimports@${IMPORTS_VERSION} && \
-    go install golang.org/x/vuln/cmd/govulncheck@${VULN_VERSION} && \
-    go install github.com/golangci/golangci-lint/cmd/golangci-lint@${LINT_VERSION}
-
-# ───────────────────────────────────────────────────────────
-# ✅ INSTALL `golang-migrate` USING OFFICIAL METHOD
-# ───────────────────────────────────────────────────────────
+# Install Swagger (for docs) and golang-migrate (for DB migrations)
+RUN go install github.com/swaggo/swag/cmd/swag@${SWAG_VERSION}
 RUN curl -L https://github.com/golang-migrate/migrate/releases/download/${MIGRATE_VERSION}/migrate.linux-amd64.tar.gz -o migrate.tar.gz && \
     tar -xvf migrate.tar.gz && \
     mv migrate /usr/local/bin/migrate && \
@@ -106,7 +88,6 @@ COPY --from=builder /app/package/database/migrations /app/migrations
 COPY --from=builder /usr/local/bin/migrate /usr/local/bin/migrate
 
 EXPOSE 8080
-# Expose the application port
 
 # Run the application
 CMD ["/app/server"]
